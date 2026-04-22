@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORo | Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon"></div>
+                <h1>ORo <span>Base</span></h1>
+            </div>
+            
+            <nav class="endpoints">
+                <div class="nav-label">ENDPOINTS</div>
+                <button class="nav-item active" data-endpoint="sensors">
+                    <span class="icon">📡</span> Sensors
+                    <span class="badge" id="badge-sensors">0</span>
+                </button>
+                <button class="nav-item" data-endpoint="system">
+                    <span class="icon">⚙️</span> System
+                    <span class="badge" id="badge-system">0</span>
+                </button>
+                <button class="nav-item" data-endpoint="status">
+                    <span class="icon">🔔</span> Status
+                    <span class="badge" id="badge-status">0</span>
+                </button>
+
+                <button class="nav-item" data-endpoint="thermal">
+                    <span class="icon">🌡️</span> Thermal IR
+                </button>
+
+                <div class="nav-separator"></div>
+
+                <button class="nav-item" data-endpoint="commands">
+                    <span class="icon">🎮</span> Control
+                </button>
+            </nav>
+
+            <div class="connection-status">
+                <div class="status-dot offline" id="ws-status-dot"></div>
+                <span id="ws-status-text">Disconnected</span>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard -->
+        <main class="dashboard">
+            <header class="dashboard-header">
+                <div class="header-info">
+                    <h2 id="current-endpoint-title">Sensor Telemetry</h2>
+                    <p id="current-endpoint-desc">Live data from UART OroPackets</p>
+                </div>
+                <div class="header-actions">
+                    <button id="clear-data" class="btn-secondary">Clear View</button>
+                </div>
+            </header>
+
+            <div class="topic-grid" id="topic-grid">
+                <!-- Topic cards will be injected here -->
+                <div class="empty-state">
+                    <p>Waiting for data from ZMQ Bridge...</p>
+                </div>
+            </div>
+
+            <!-- Specialized Thermal Analysis View -->
+            <div id="thermal-container" class="thermal-analysis hidden">
+                <div class="thermal-layout">
+                    <!-- High Resolution Visual Heatmap -->
+                    <section class="thermal-visual">
+                        <div class="section-header">
+                            <h3>Live Heatmap</h3>
+                            <span class="live-indicator">LIVE FEED</span>
+                        </div>
+                        <div class="large-heatmap" id="thermal-heatmap-large"></div>
+                    </section>
+                    
+                    <!-- Raw Numerical Matrix -->
+                    <section class="thermal-numerical">
+                        <div class="section-header">
+                            <h3>Numerical Matrix</h3>
+                            <span class="unit-label">CELSIUS (°C)</span>
+                        </div>
+                        <div class="data-matrix" id="thermal-data-matrix"></div>
+                    </section>
+
+                    <!-- Real-time Analytics -->
+                    <section class="thermal-analytics">
+                        <div class="analytics-card">
+                            <span class="label">Min Temperature</span>
+                            <span class="value" id="ta-min">--</span>
+                        </div>
+                        <div class="analytics-card">
+                            <span class="label">Max Temperature</span>
+                            <span class="value" id="ta-max">--</span>
+                        </div>
+                        <div class="analytics-card">
+                            <span class="label">Ambient Temp</span>
+                            <span class="value" id="ta-amb">--</span>
+                        </div>
+                        <div class="analytics-card">
+                            <span class="label">Update Rate</span>
+                            <span class="value" id="ta-freq">--</span>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Template for Topic Card -->
+    <template id="topic-card-template">
+        <div class="card glass">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">TOPIC</span>
+                    <h3 class="topic-name">/sensors/weight</h3>
+                </div>
+                <div class="type-badge">ANALOG</div>
+            </div>
+            <div class="card-body">
+                <div class="main-value">--</div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Freq: <span class="val-freq">--</span> Hz</span>
+                <span class="stat">Seq: <span class="val-seq">--</span></span>
+                <span class="stat">SID: <span class="val-sid">--</span></span>
+                <span class="stat-time">--</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Thermal Heatmap Card -->
+    <template id="topic-thermal-template">
+        <div class="card glass thermal">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">THERMAL ARRAY</span>
+                    <h3 class="topic-name">/sensors/thermal/ir_array</h3>
+                </div>
+                <div class="type-badge">THERMAL</div>
+            </div>
+            <div class="card-body">
+                <div class="heatmap-container">
+                    <div class="heatmap-grid" id="pixel-grid">
+                        <!-- 64 pixels injected here -->
+                    </div>
+                    
+                    <div class="thermal-stats">
+                        <div class="thermo-stat">
+                            <span class="label">Min</span>
+                            <span class="value thermal-min">--°C</span>
+                        </div>
+                        <div class="thermo-stat">
+                            <span class="label">Ambient</span>
+                            <span class="value thermal-amb">--°C</span>
+                        </div>
+                        <div class="thermo-stat">
+                            <span class="label">Max</span>
+                            <span class="value thermal-max">--°C</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Freq: <span class="val-freq">--</span> Hz</span>
+                <span class="stat">Seq: <span class="val-seq">--</span></span>
+                <span class="stat-time">--</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Range Control Card -->
+    <template id="control-range-template">
+        <div class="card glass control-card">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">HARDWARE</span>
+                    <h3 class="control-name">--</h3>
+                </div>
+                <div class="status-indicator">READY</div>
+            </div>
+            <div class="card-body">
+                <div class="control-input-group">
+                    <div class="slider-container">
+                        <label><span class="val-label">Value</span>: <span class="current-val">--</span><span class="unit"></span></label>
+                        <input type="range" class="slider">
+                    </div>
+                    <button class="btn-primary btn-submit">EXECUTE</button>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Target: <span class="last-val">--</span></span>
+                <span class="stat">Last Action: <span class="last-action">--</span></span>
+                <span class="stat">Latency: <span class="last-latency">--</span>ms</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Trigger Control Card -->
+    <template id="control-trigger-template">
+        <div class="card glass control-card trigger-card">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">SERVICE</span>
+                    <h3 class="control-name">--</h3>
+                </div>
+                <div class="status-indicator">READY</div>
+            </div>
+            <div class="card-body">
+                <div class="trigger-container">
+                    <p class="control-desc">--</p>
+                    <button class="btn-primary btn-submit btn-large">TRIGGER ACTION</button>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Last Action: <span class="last-action">--</span></span>
+                <span class="stat">Latency: <span class="last-latency">--</span>ms</span>
+                <span class="stat">Time: <span class="last-time">--</span></span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Dual Trigger Control Card -->
+    <template id="control-dual-template">
+        <div class="card glass control-card dual-card">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">DUAL SERVICE</span>
+                    <h3 class="control-name">--</h3>
+                </div>
+                <div class="status-indicator">READY</div>
+            </div>
+            <div class="card-body">
+                <div class="dual-container">
+                    <p class="control-desc">--</p>
+                    <div class="btn-group">
+                        <button class="btn-primary btn-on">--</button>
+                        <button class="btn-secondary btn-off">--</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Current: <span class="current-state">OFF</span></span>
+                <span class="stat">Last Action: <span class="last-action">--</span></span>
+                <span class="stat">Latency: <span class="last-latency">--</span>ms</span>
+            </div>
+        </div>
+    </template>
+
+    <!-- Template for Audio Control Card -->
+    <template id="control-audio-template">
+        <div class="card glass control-card audio-card">
+            <div class="card-header">
+                <div class="topic-info">
+                    <span class="topic-label">MEDIA SERVICE</span>
+                    <h3 class="control-name">Speaker System</h3>
+                </div>
+                <div class="status-indicator">READY</div>
+            </div>
+            <div class="card-body">
+                <div class="audio-container">
+                    <div class="track-selector">
+                        <label>Select Track:</label>
+                        <div class="track-btns">
+                            <button class="track-btn" data-track="1">1</button>
+                            <button class="track-btn" data-track="2">2</button>
+                            <button class="track-btn" data-track="3">3</button>
+                        </div>
+                    </div>
+                    <div class="media-controls">
+                        <button class="media-btn play" title="Play">▶</button>
+                        <button class="media-btn pause" title="Pause">⏸</button>
+                        <button class="media-btn stop" title="Stop">⏹</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <span class="stat">Track: <span class="current-track">--</span></span>
+                <span class="stat">State: <span class="playback-state">STOPPED</span></span>
+                <span class="stat">Last Code: <span class="last-action">--</span></span>
+            </div>
+        </div>
+    </template>
+
+    <script src="app.js"></script>
+</body>
+</html>
