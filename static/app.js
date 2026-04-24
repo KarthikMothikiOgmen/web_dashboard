@@ -570,14 +570,8 @@ class Dashboard {
         if (data.type === 'THERMAL') {
             this.updateHeatmap(card, data);
         } else if (data.type === 'DIGITAL') {
-            let isFullActive = data.value === 1 || data.value === 2 || data.value === true;
-            let isWarning = (data.value === 1 && topic.includes('connectivity'));
-            
-            // Special visualization for water level: 0 (FULL) is the active/normal state
-            if (topic.includes('water_level/bowl')) {
-                isFullActive = (data.value === 0);
-                isWarning = (data.value === 1);
-            }
+            const isFullActive = data.value === 1 || data.value === 2 || data.value === true;
+            const isWarning = data.value === 1 && topic.includes('connectivity');
             
             valueEl.innerText = data.label || (isFullActive ? 'ACTIVE' : 'INACTIVE');
             

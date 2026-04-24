@@ -61,7 +61,7 @@ TOPICS = {
     "/sensors/food_weight/bowl_1": {"cat": "ANALOG", "ep": "sensors"},
     "/sensors/food_weight/bowl_2": {"cat": "ANALOG", "ep": "sensors"},
     "/sensors/water_level/tank": {"cat": "ANALOG", "ep": "sensors"},
-    "/sensors/water_level/bowl": {"cat": "DIGITAL", "ep": "sensors"},
+    "/sensors/water_level/bowl": {"cat": "ANALOG", "ep": "sensors"},
     "/sensors/environment/humidity": {"cat": "ANALOG", "ep": "sensors"},
     "/sensors/environment/temperature": {"cat": "ANALOG", "ep": "sensors"},
     "/sensors/camera_rotation/limit_switch_1": {"cat": "DIGITAL", "ep": "sensors"},
@@ -183,8 +183,6 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                         data["label"] = "OPEN" if val else "CLOSED"
                     elif "water_pump" in topic:
                         data["label"] = "ON" if val else "OFF"
-                    elif "water_level/bowl" in topic:
-                        data["label"] = "FULL" if val == 0 else "NOT FULL"
                     elif "stepper_motor" in topic:
                         data["label"] = "RUNNING" if val else "IDLE"
                     elif "/system/connectivity/state" in topic:
