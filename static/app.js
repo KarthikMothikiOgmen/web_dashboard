@@ -570,21 +570,45 @@ class Dashboard {
         if (data.type === 'THERMAL') {
             this.updateHeatmap(card, data);
         } else if (data.type === 'DIGITAL') {
-            const isFullActive = data.value === 1 || data.value === 2 || data.value === true;
-            const isWarning = data.value === 1 && topic.includes('connectivity');
+            let label = data.label;
+            let statusClass = '';
+
+            // Map status class based on topic and value
+            if (topic === '/sensors/water_level/bowl') {
+                statusClass = (data.value === 0) ? 'active' : '';
+            } else if (topic.includes('/status/lid/')) {
+                statusClass = (data.value === 1) ? 'active' : '';
+            } else if (topic.includes('/status/lid_motor/')) {
+                statusClass = (data.value === 1) ? 'active' : '';
+            } else if (topic.includes('/sensors/camera_rotation/limit_switch')) {
+                statusClass = (data.value === 1) ? 'warning' : '';
+            } else if (topic.includes('/sensors/camera_rotation/home')) {
+                statusClass = (data.value === 1) ? 'active' : '';
+            } else {
+                const isFullActive = data.value === 1 || data.value === 2 || data.value === true;
+                statusClass = isFullActive ? 'active' : '';
+            }
+
+            // Fallback label if backend didn't provide one
+            if (!label) {
+                label = (statusClass === 'active' || data.value === 1) ? 'ACTIVE' : 'INACTIVE';
+            }
+
+            // Connectivity warning override
+            if (topic.includes('connectivity') && data.value === 1) {
+                statusClass = 'warning';
+                label = 'LOCAL ONLY';
+            }
             
-            valueEl.innerText = data.label || (isFullActive ? 'ACTIVE' : 'INACTIVE');
+            valueEl.innerText = label;
             
             // Clear previous state classes
             valueEl.classList.remove('active', 'warning');
             card.classList.remove('active', 'warning');
             
-            if (isWarning) {
-                valueEl.classList.add('warning');
-                card.classList.add('warning');
-            } else if (isFullActive) {
-                valueEl.classList.add('active');
-                card.classList.add('active');
+            if (statusClass) {
+                valueEl.classList.add(statusClass);
+                card.classList.add(statusClass);
             }
         } else if (data.type === 'ANALOG') {
             if (data.label) {

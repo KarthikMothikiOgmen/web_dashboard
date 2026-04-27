@@ -79,16 +79,20 @@ TOPICS = {
     "/status/camera_rotation/stepper_motor": {"cat": "DIGITAL", "ep": "status"},
     "/status/display/seven_segment": {"cat": "ANALOG", "ep": "status"},
     "/status/led_indicator": {"cat": "ANALOG", "ep": "status"},
-    "/commands/camera_rotation": {"cat": "COMMAND", "ep": "system"},
-    "/commands/feed": {"cat": "COMMAND", "ep": "system"},
-    "/commands/treat/dispense": {"cat": "COMMAND", "ep": "system"},
-    "/commands/photo_capture": {"cat": "COMMAND", "ep": "system"},
-    "/commands/live_session/start": {"cat": "COMMAND", "ep": "system"},
-    "/commands/live_session/end": {"cat": "COMMAND", "ep": "system"},
-    "/commands/camera/ir_control": {"cat": "COMMAND", "ep": "system"},
-    "/commands/audio/speakers": {"cat": "COMMAND", "ep": "system"},
-    "/commands/settings/apply": {"cat": "COMMAND", "ep": "system"},
-    "/commands/firmware/update": {"cat": "COMMAND", "ep": "system"},
+    "/commands/camera_rotation": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/camera_rotation_servo": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/feed": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/treat/dispense": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/photo_capture": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/live_session/start": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/live_session/end": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/camera/ir_control": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/audio/speakers": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/settings/apply": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/firmware/update": {"cat": "COMMAND", "ep": "commands"},
+    "/commands/led": {"cat": "COMMAND", "ep": "commands"},
+    "/status/lid_motor/1": {"cat": "DIGITAL", "ep": "status"},
+    "/status/lid_motor/2": {"cat": "DIGITAL", "ep": "status"},
     "/sensors/treat/level_indicator_ir": {"cat": "DIGITAL", "ep": "sensors"},
     "/sensors/treat/sorter_ir": {"cat": "DIGITAL", "ep": "sensors"},
     "/sensors/treat/thrower_ir": {"cat": "DIGITAL", "ep": "sensors"},
@@ -148,19 +152,19 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                 
                 sid, seq, ts_ms = struct.unpack('<BBQ', payload[:10])
                 
+                # Metadata discovery from TOPIC_REGISTRY
+                meta = TOPICS.get(topic, {})
+                cat = meta.get("cat")
+
                 data = {
                     "topic": topic,
-                    "endpoint": endpoint_name,
+                    "endpoint": meta.get("ep", endpoint_name),
                     "sid": sid,
                     "seq": seq,
                     "ts": ts_ms,
                     "value": None,
                     "type": "UNKNOWN"
                 }
-
-                # Decode payload based on size or topic registry metadata
-                meta = TOPICS.get(topic, {})
-                cat = meta.get("cat")
 
                 if len(payload) == 14:
                     if cat == "ENCODER" or "encoder" in topic:
@@ -179,8 +183,10 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                     
                     # Generate human labels
                     val = data["value"]
-                    if "lid" in topic:
+                    if "lid" in topic and "motor" not in topic:
                         data["label"] = "OPEN" if val else "CLOSED"
+                    elif "water_level/bowl" in topic:
+                        data["label"] = "NOT FULL" if val else "FULL"
                     elif "water_pump" in topic:
                         data["label"] = "ON" if val else "OFF"
                     elif "stepper_motor" in topic:
