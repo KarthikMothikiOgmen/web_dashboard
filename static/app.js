@@ -210,6 +210,48 @@ class Dashboard {
                 desc: 'Precision stepper motor control for panoramic rotation.',
                 source: 'MCU'
             },
+            {
+                topic: '/commands/camera_rotation_servo',
+                name: 'Camera Servo',
+                type: 'range',
+                min: -90, max: 90, step: 1, unit: '°', valLabel: 'Servo Angle',
+                feedbackTopic: '/status/camera_rotation/servo_motor',
+                desc: 'Home servo motor for camera vertical tilt positioning.',
+                source: 'MCU'
+            },
+            {
+                topic: '/commands/pump',
+                name: 'Water Pump',
+                type: 'dual',
+                desc: 'Control the water pump: ON to prime, OFF to stop.',
+                btnOn: 'PUMP ON',
+                btnOff: 'PUMP OFF',
+                valOn: 1,
+                valOff: 0,
+                source: 'MCU'
+            },
+            {
+                topic: '/commands/lid/1',
+                name: 'Lid 1 Control',
+                type: 'dual',
+                desc: 'Open or close Lid 1. Monitor /status/lid/1 for physical state.',
+                btnOn: 'OPEN',
+                btnOff: 'CLOSE',
+                valOn: 1,
+                valOff: 0,
+                source: 'MCU'
+            },
+            {
+                topic: '/commands/lid/2',
+                name: 'Lid 2 Control',
+                type: 'dual',
+                desc: 'Open or close Lid 2. Monitor /status/lid/2 for physical state.',
+                btnOn: 'OPEN',
+                btnOff: 'CLOSE',
+                valOn: 1,
+                valOff: 0,
+                source: 'MCU'
+            },
             { 
                 topic: '/commands/feed', 
                 name: 'Feed System', 
@@ -576,10 +618,39 @@ class Dashboard {
             // Map status class based on topic and value
             if (topic === '/sensors/water_level/bowl') {
                 statusClass = (data.value === 0) ? 'active' : '';
-            } else if (topic.includes('/status/lid/')) {
-                statusClass = (data.value === 1) ? 'active' : '';
             } else if (topic.includes('/status/lid_motor/')) {
-                statusClass = (data.value === 1) ? 'active' : '';
+                // Lid motor: 0=IDLE, 1=RUNNING
+                if (data.value === 1) {
+                    label = '⚙ RUNNING';
+                    statusClass = 'active';
+                } else {
+                    label = '— IDLE';
+                    statusClass = '';
+                }
+            } else if (topic === '/status/camera_rotation/servo_motor') {
+                if (data.value === 1) {
+                    label = '⚙ RUNNING';
+                    statusClass = 'active';
+                } else {
+                    label = '— IDLE';
+                    statusClass = '';
+                }
+            } else if (topic === '/status/camera_rotation/stepper_motor') {
+                if (data.value === 1) {
+                    label = '⚙ RUNNING';
+                    statusClass = 'active';
+                } else {
+                    label = '— IDLE';
+                    statusClass = '';
+                }
+            } else if (topic === '/status/water_pump') {
+                if (data.value === 1) {
+                    label = '♒ PUMPING';
+                    statusClass = 'active';
+                } else {
+                    label = '— IDLE';
+                    statusClass = '';
+                }
             } else if (topic.includes('/sensors/camera_rotation/limit_switch')) {
                 statusClass = (data.value === 1) ? 'warning' : '';
             } else if (topic.includes('/sensors/camera_rotation/home')) {
@@ -611,7 +682,28 @@ class Dashboard {
                 card.classList.add(statusClass);
             }
         } else if (data.type === 'ANALOG') {
-            if (data.label) {
+            // Lid physical state: labeled map
+            if (topic.includes('/status/lid/')) {
+                const v = data.value;
+                let lidLabel, lidClass;
+                if (v >= 2.5) { // 3.0 = transition
+                    lidLabel = '⟳ TRANSITION';
+                    lidClass = 'warning';
+                } else if (v >= 0.5) { // 1.0 = open
+                    lidLabel = '▲ OPEN';
+                    lidClass = 'active';
+                } else { // 0.0 = closed
+                    lidLabel = '▼ CLOSED';
+                    lidClass = '';
+                }
+                valueEl.innerText = lidLabel;
+                valueEl.classList.remove('active', 'warning');
+                card.classList.remove('active', 'warning');
+                if (lidClass) {
+                    valueEl.classList.add(lidClass);
+                    card.classList.add(lidClass);
+                }
+            } else if (data.label) {
                 valueEl.innerText = data.label;
             } else {
                 valueEl.innerText = data.value.toFixed(2);

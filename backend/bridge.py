@@ -73,10 +73,11 @@ TOPICS = {
     "/system/time/clock": {"cat": "ANALOG", "ep": "system"},
     "/system/device/heartbeat": {"cat": "DIGITAL", "ep": "system"},
     "/system/connectivity/state": {"cat": "DIGITAL", "ep": "system"},
-    "/status/lid/1": {"cat": "DIGITAL", "ep": "status"},
-    "/status/lid/2": {"cat": "DIGITAL", "ep": "status"},
+    "/status/lid/1": {"cat": "ANALOG", "ep": "status"},
+    "/status/lid/2": {"cat": "ANALOG", "ep": "status"},
     "/status/water_pump": {"cat": "DIGITAL", "ep": "status"},
     "/status/camera_rotation/stepper_motor": {"cat": "DIGITAL", "ep": "status"},
+    "/status/camera_rotation/servo_motor": {"cat": "DIGITAL", "ep": "status"},
     "/status/display/seven_segment": {"cat": "ANALOG", "ep": "status"},
     "/status/led_indicator": {"cat": "ANALOG", "ep": "status"},
     "/commands/camera_rotation": {"cat": "COMMAND", "ep": "commands"},
@@ -176,6 +177,12 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                         # Handle specific labels for analog display topics
                         if "/status/display/seven_segment" in topic:
                             data["label"] = str(int(data["value"]))
+                        elif "lid" in topic and "motor" not in topic:
+                            v = data["value"]
+                            if v >= 2.5: # 3.0 = transition
+                                data["label"] = "TRANSITION"
+                            else:
+                                data["label"] = "OPEN" if v >= 0.5 else "CLOSED"
                             
                 elif len(payload) == 11:
                     data["value"], = struct.unpack('<B', payload[10:11])
@@ -184,12 +191,15 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                     # Generate human labels
                     val = data["value"]
                     if "lid" in topic and "motor" not in topic:
-                        data["label"] = "OPEN" if val else "CLOSED"
+                        if val >= 3:
+                            data["label"] = "TRANSITION"
+                        else:
+                            data["label"] = "OPEN" if val else "CLOSED"
                     elif "water_level/bowl" in topic:
                         data["label"] = "NOT FULL" if val else "FULL"
                     elif "water_pump" in topic:
-                        data["label"] = "ON" if val else "OFF"
-                    elif "stepper_motor" in topic:
+                        data["label"] = "PUMPING" if val else "IDLE"
+                    elif "motor" in topic:
                         data["label"] = "RUNNING" if val else "IDLE"
                     elif "/system/connectivity/state" in topic:
                         if val == 2:
