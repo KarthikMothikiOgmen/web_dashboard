@@ -273,7 +273,7 @@ async def post_command(cmd: CommandRequest):
         print(f"[ZMQ Bridge] Command error: {type(e).__name__}: {e}")
         # REQ socket FSM is stuck — close and recreate for next command.
         reset_cmd_socket()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Command Timeout or Failure: {str(e)}"}
 
 @app.get("/")
 async def get_index():
