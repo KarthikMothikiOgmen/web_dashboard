@@ -208,6 +208,10 @@ async def zmq_subscriber(endpoint_name: str, url: str):
                             data["label"] = "LOCAL ONLY"
                         else:
                             data["label"] = "DISCONNECTED"
+                    elif "/sensors/camera_rotation/home" in topic:
+                        data["label"] = "AT HOME" if val else "NOT AT HOME"
+                    elif "/status/camera_rotation/servo_motor" in topic:
+                        data["label"] = "ENGAGED" if val == 0 else "DISENGAGED"
                     else:
                         data["label"] = "ACTIVE" if val else "INACTIVE"
                 

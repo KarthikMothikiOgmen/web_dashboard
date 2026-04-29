@@ -104,11 +104,18 @@ class Dashboard {
         if (this.currentEndpoint === 'commands') {
             const feedbackCards = document.querySelectorAll(`[data-feedback="${topic}"]`);
             feedbackCards.forEach(card => {
-                const posEl = card.querySelector('.current-pos');
-                if (posEl) {
-                    posEl.innerText = typeof value === 'number' ? value.toFixed(1) : value;
-                    posEl.classList.add('pulse-glow');
-                    setTimeout(() => posEl.classList.remove('pulse-glow'), 500);
+                const actualValEl = card.querySelector('.actual-val');
+                const actualStateEl = card.querySelector('.actual-state');
+                
+                if (actualValEl) {
+                    actualValEl.innerText = typeof value === 'number' ? value.toFixed(1) : value;
+                    actualValEl.classList.add('pulse-glow');
+                    setTimeout(() => actualValEl.classList.remove('pulse-glow'), 500);
+                }
+                if (actualStateEl) {
+                    actualStateEl.innerText = value;
+                    actualStateEl.classList.add('pulse-glow');
+                    setTimeout(() => actualStateEl.classList.remove('pulse-glow'), 500);
                 }
             });
         }
@@ -213,44 +220,50 @@ class Dashboard {
             {
                 topic: '/commands/camera_rotation_servo',
                 name: 'Camera Servo',
-                type: 'range',
-                min: -90, max: 90, step: 1, unit: '°', valLabel: 'Servo Angle',
+                type: 'dual',
+                desc: 'Control the Cam Rotation Servo: ON to Engage, OFF to Disengage.',
                 feedbackTopic: '/status/camera_rotation/servo_motor',
-                desc: 'Home servo motor for camera vertical tilt positioning.',
-                source: 'MCU'
+                btnOn: 'ENGAGE',
+                btnOff: 'DISENGAGE',
+                valOn: 1,
+                valOff: 0,
+                source: 'HOST'
             },
             {
                 topic: '/commands/pump',
                 name: 'Water Pump',
                 type: 'dual',
                 desc: 'Control the water pump: ON to prime, OFF to stop.',
+                feedbackTopic: '/status/water_pump',
                 btnOn: 'PUMP ON',
                 btnOff: 'PUMP OFF',
                 valOn: 1,
                 valOff: 0,
-                source: 'MCU'
+                source: 'HOST'
             },
             {
                 topic: '/commands/lid/1',
                 name: 'Lid 1 Control',
                 type: 'dual',
                 desc: 'Open or close Lid 1. Monitor /status/lid/1 for physical state.',
+                feedbackTopic: '/status/lid/1',
                 btnOn: 'OPEN',
                 btnOff: 'CLOSE',
                 valOn: 1,
                 valOff: 0,
-                source: 'MCU'
+                source: 'HOST'
             },
             {
                 topic: '/commands/lid/2',
                 name: 'Lid 2 Control',
                 type: 'dual',
                 desc: 'Open or close Lid 2. Monitor /status/lid/2 for physical state.',
+                feedbackTopic: '/status/lid/2',
                 btnOn: 'OPEN',
                 btnOff: 'CLOSE',
                 valOn: 1,
                 valOff: 0,
-                source: 'MCU'
+                source: 'HOST'
             },
             { 
                 topic: '/commands/feed', 
@@ -459,6 +472,16 @@ class Dashboard {
                 // Update footer stats
                 const lastValEl = card.querySelector('.last-val');
                 if (lastValEl) lastValEl.innerText = value;
+
+                const targetStateEl = card.querySelector('.target-state');
+                if (targetStateEl) {
+                    const cfg = this.getControlConfigByTopic(topic);
+                    if (cfg && cfg.type === 'dual') {
+                         targetStateEl.innerText = (value === (cfg.valOn ?? 1.0)) ? 'OPEN/ON' : 'CLOSED/OFF';
+                    } else {
+                         targetStateEl.innerText = value;
+                    }
+                }
                 
                 const lastLatEl = card.querySelector('.last-latency');
                 if (lastLatEl) lastLatEl.innerText = result.latency_ms || '--';
@@ -466,42 +489,18 @@ class Dashboard {
                 const lastTimeEl = card.querySelector('.last-time');
                 if (lastTimeEl) lastTimeEl.innerText = new Date().toLocaleTimeString();
 
-                const lastActionEl = card.querySelector('.last-action');
-                if (lastActionEl) {
-                    const actionName = topic.split('/').pop().toUpperCase();
-                    let displayVal = value;
-                    
-                    // Specific label mapping for audio
-                    if (topic.includes('audio')) {
-                        if (value == 0) displayVal = "STOP";
-                        else if (value == 99) displayVal = "PLAY";
-                        else if (value == 97) displayVal = "PAUSE";
-                        else if (value >= 1 && value <= 3) displayVal = `LOAD TRACK ${value}`;
-                    }
-
-                    lastActionEl.innerText = `${actionName} (${displayVal})`;
-                    lastActionEl.classList.add('pulse-glow');
-                    setTimeout(() => lastActionEl.classList.remove('pulse-glow'), 500);
-                }
-
-                // Update current state for dual switches
-                const stateEl = card.querySelector('.current-state');
-                if (stateEl) {
-                    const cfg = this.getControlConfigByTopic(topic);
-                    if (cfg && cfg.type === 'dual') {
-                         const isOn = (value === (cfg.valOn ?? 1.0));
-                         stateEl.innerText = isOn ? 'ON' : 'OFF';
-                         stateEl.className = `stat current-state ${isOn ? 'active' : ''}`;
-                    }
-                }
-                
                 const lastStatusEl = card.querySelector('.last-status');
                 if (lastStatusEl) lastStatusEl.innerText = 'OK';
 
             } else {
-                statusEl.innerText = 'ERROR';
+                let errorMsg = 'ERROR';
+                if (result.fw_status === 3) errorMsg = 'BUSY - WAIT';
+                else if (result.fw_status === 4) errorMsg = 'INVALID CMD';
+                else if (result.message && result.message.includes('Timeout')) errorMsg = 'TIMEOUT';
+                
+                statusEl.innerText = errorMsg;
                 statusEl.className = 'status-indicator error';
-                console.error('[Command] Failed:', result.message);
+                console.error('[Command] Failed:', result.message || `FW Status ${result.fw_status}`);
             }
         } catch (e) {
             statusEl.innerText = 'FAIL';
