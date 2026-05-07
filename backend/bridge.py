@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
-from typing import List, Dict
+from typing import List, Dict, Any
 import os
 from pydantic import BaseModel
 
@@ -260,6 +260,29 @@ def reset_cmd_socket():
 @app.post("/api/command")
 async def post_command(cmd: CommandRequest):
     try:
+        import uuid, time
+        if cmd.topic.startswith("/commands/lid/"):
+            lid_id = 1 if "1" in cmd.topic else 2
+            action = 1 if cmd.value >= 0.5 else 0
+            payload = {
+                "header": {
+                    "signal_id": 64,
+                    "signal_type": "lid_actuation_command",
+                    "command_id": f"web_lid_{uuid.uuid4().hex[:8]}",
+                    "issued_by": "web_dashboard",
+                    "event_time": int(time.time() * 1000)
+                },
+                "payload": {
+                    "lid_id": lid_id,
+                    "action": action
+                }
+            }
+            await app.state.cmd_sock.send_string(json.dumps(payload))
+            reply = await asyncio.wait_for(
+                app.state.cmd_sock.recv_string(), timeout=12.0
+            )
+            return json.loads(reply)
+
         payload = {
             "topic": cmd.topic,
             "value": cmd.value
@@ -278,6 +301,28 @@ async def post_command(cmd: CommandRequest):
         # REQ socket FSM is stuck — close and recreate for next command.
         reset_cmd_socket()
         return {"status": "error", "message": f"Command Timeout or Failure: {str(e)}"}
+
+class ExecuteRequest(BaseModel):
+    header: Dict[str, Any]
+    payload: Dict[str, Any]
+
+@app.post("/api/execute")
+async def execute_command(req: ExecuteRequest):
+    try:
+        payload = {
+            "header": req.header,
+            "payload": req.payload
+        }
+        await app.state.cmd_sock.send_string(json.dumps(payload))
+
+        reply = await asyncio.wait_for(
+            app.state.cmd_sock.recv_string(), timeout=12.0
+        )
+        return json.loads(reply)
+    except (asyncio.TimeoutError, asyncio.CancelledError, Exception) as e:
+        print(f"[ZMQ Bridge] Execute error: {type(e).__name__}: {e}")
+        reset_cmd_socket()
+        return {"status": "error", "message": f"Execute Timeout or Failure: {str(e)}"}
 
 @app.get("/")
 async def get_index():

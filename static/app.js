@@ -452,15 +452,37 @@ class Dashboard {
         buttons.forEach(b => b.disabled = true);
 
         try {
-            const response = await fetch('/api/command', {
+            let endpoint = '/api/command';
+            let body = { topic, value };
+
+            if (topic.startsWith('/commands/lid/')) {
+                endpoint = '/api/execute';
+                body = {
+                    header: {
+                        signal_id: 64,
+                        signal_type: 'lid_actuation_command',
+                        command_id: `web_lid_${Math.random().toString(36).substring(2, 10)}`,
+                        issued_by: 'web_dashboard',
+                        event_time: Date.now()
+                    },
+                    payload: {
+                        lid_id: topic.includes('1') ? 1 : 2,
+                        action: value >= 0.5 ? 1 : 0
+                    }
+                };
+            }
+
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic, value })
+                body: JSON.stringify(body)
             });
             
             const result = await response.json();
+            const resData = result.result || result;
+            const isSuccess = result.status === 'success' || resData.success === true || resData.status === 'success';
             
-            if (result.status === 'success') {
+            if (isSuccess) {
                 statusEl.innerText = 'SUCCESS';
                 statusEl.className = 'status-indicator';
 
@@ -484,7 +506,7 @@ class Dashboard {
                 }
                 
                 const lastLatEl = card.querySelector('.last-latency');
-                if (lastLatEl) lastLatEl.innerText = result.latency_ms || '--';
+                if (lastLatEl) lastLatEl.innerText = resData.latency_ms || '--';
                 
                 const lastTimeEl = card.querySelector('.last-time');
                 if (lastTimeEl) lastTimeEl.innerText = new Date().toLocaleTimeString();
@@ -494,13 +516,17 @@ class Dashboard {
 
             } else {
                 let errorMsg = 'ERROR';
-                if (result.fw_status === 3) errorMsg = 'BUSY - WAIT';
-                else if (result.fw_status === 4) errorMsg = 'INVALID CMD';
+                const fwStatus = resData.fw_status;
+                if (fwStatus === 3) errorMsg = 'BUSY - WAIT';
+                else if (fwStatus === 4) errorMsg = 'INVALID CMD';
                 else if (result.message && result.message.includes('Timeout')) errorMsg = 'TIMEOUT';
+                else if (resData.success === false) {
+                    errorMsg = resData.data?.mcu_error || resData.data?.reason || resData.reason || 'EXEC_ERROR';
+                }
                 
                 statusEl.innerText = errorMsg;
                 statusEl.className = 'status-indicator error';
-                console.error('[Command] Failed:', result.message || `FW Status ${result.fw_status}`);
+                console.error('[Command] Failed:', result.message || `FW Status ${fwStatus} / Status: ${resData.status}`);
             }
         } catch (e) {
             statusEl.innerText = 'FAIL';
