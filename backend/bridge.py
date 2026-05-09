@@ -293,7 +293,7 @@ async def post_command(cmd: CommandRequest):
         # level and leaks a CancelledError into the uvloop callback chain,
         # breaking the REQ socket FSM permanently.
         reply = await asyncio.wait_for(
-            app.state.cmd_sock.recv_string(), timeout=10.0
+            app.state.cmd_sock.recv_string(), timeout=15.0
         )
         return json.loads(reply)
     except (asyncio.TimeoutError, asyncio.CancelledError, Exception) as e:
