@@ -326,9 +326,12 @@ async def execute_command(req: ExecuteRequest):
 
 @app.get("/")
 async def get_index():
-    return FileResponse(os.path.join(os.path.dirname(__file__), "../static/index.html"))
+    return FileResponse(
+        os.path.join(os.path.dirname(__file__), "../static/index.html"),
+        media_type="text/html"
+    )
 
-app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "../static")), name="static")
+app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "../static"), html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn

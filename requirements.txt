@@ -1,0 +1,10 @@
+# FastAPI Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# ZMQ Messaging
+pyzmq==25.1.2
+
+# Development and utilities
+python-dotenv==1.0.0
