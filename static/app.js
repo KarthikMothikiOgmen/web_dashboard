@@ -470,6 +470,21 @@ class Dashboard {
                         action: value >= 0.5 ? 1 : 0
                     }
                 };
+            } else if (topic === '/commands/camera_rotation') {
+                endpoint = '/api/execute';
+                body = {
+                    header: {
+                        signal_id: 134,
+                        signal_type: 'camera_rotation_command',
+                        command_id: `web_cam_${Math.random().toString(36).substring(2, 10)}`,
+                        issued_by: 'web_dashboard',
+                        event_time: Date.now()
+                    },
+                    payload: {
+                        angle: parseFloat(value),
+                        value: parseFloat(value)
+                    }
+                };
             }
 
             const response = await fetch(endpoint, {

@@ -283,6 +283,26 @@ async def post_command(cmd: CommandRequest):
             )
             return json.loads(reply)
 
+        if cmd.topic == "/commands/camera_rotation":
+            payload = {
+                "header": {
+                    "signal_id": 134,
+                    "signal_type": "camera_rotation_command",
+                    "command_id": f"web_cam_{uuid.uuid4().hex[:8]}",
+                    "issued_by": "web_dashboard",
+                    "event_time": int(time.time() * 1000)
+                },
+                "payload": {
+                    "angle": cmd.value,
+                    "value": cmd.value
+                }
+            }
+            await app.state.cmd_sock.send_string(json.dumps(payload))
+            reply = await asyncio.wait_for(
+                app.state.cmd_sock.recv_string(), timeout=15.0
+            )
+            return json.loads(reply)
+
         payload = {
             "topic": cmd.topic,
             "value": cmd.value
