@@ -459,7 +459,7 @@ class Dashboard {
                 endpoint = '/api/execute';
                 body = {
                     header: {
-                        signal_id: 64,
+                        signal_id: '64',
                         signal_type: 'lid_actuation_command',
                         command_id: `web_lid_${Math.random().toString(36).substring(2, 10)}`,
                         issued_by: 'web_dashboard',
@@ -474,7 +474,7 @@ class Dashboard {
                 endpoint = '/api/execute';
                 body = {
                     header: {
-                        signal_id: 134,
+                        signal_id: '134',
                         signal_type: 'camera_rotation_command',
                         command_id: `web_cam_${Math.random().toString(36).substring(2, 10)}`,
                         issued_by: 'web_dashboard',

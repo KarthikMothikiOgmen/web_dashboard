@@ -266,7 +266,7 @@ async def post_command(cmd: CommandRequest):
             action = 1 if cmd.value >= 0.5 else 0
             payload = {
                 "header": {
-                    "signal_id": 64,
+                    "signal_id": "64",
                     "signal_type": "lid_actuation_command",
                     "command_id": f"web_lid_{uuid.uuid4().hex[:8]}",
                     "issued_by": "web_dashboard",
@@ -286,7 +286,7 @@ async def post_command(cmd: CommandRequest):
         if cmd.topic == "/commands/camera_rotation":
             payload = {
                 "header": {
-                    "signal_id": 134,
+                    "signal_id": "134",
                     "signal_type": "camera_rotation_command",
                     "command_id": f"web_cam_{uuid.uuid4().hex[:8]}",
                     "issued_by": "web_dashboard",
